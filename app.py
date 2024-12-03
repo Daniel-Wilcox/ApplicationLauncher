@@ -42,16 +42,19 @@ class DoesNotHaveApplicationView(tk.Frame):
         quit_button = tk.Button(self, text="Quit", command=self.controller.destroy)
         quit_button.pack(padx=20, pady=10)
 
+        self.user_entry.focus()
+
     def get_github_project(self, event=None):
 
         url = self.project_url.get()
 
         if not self._validate_github_url(url):
             messagebox.showwarning(
-                "Invalid URL", "The provided URL is not a valid GitHub project URL."
+                parent=self.controller,
+                title="Invalid URL",
+                message="The provided URL is not a valid GitHub project URL.",
             )
-            self.project_url.set(self.default_project_url)
-
+            # self.project_url.set(self.default_project_url)
             return
 
         print(f"Getting Application project from: {self.project_url.get()}")
@@ -61,6 +64,7 @@ class DoesNotHaveApplicationView(tk.Frame):
         github_url_pattern = re.compile(
             r"^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(\/)?$"
         )
+        # https://github.com/username/projectname
 
         if github_url_pattern.match(url):
             return True
@@ -81,8 +85,7 @@ class ApplicationController(tk.Tk):
         self.set_main_page()
 
     def set_main_page(self):
-
-        application_path_exists = True
+        application_path_exists = False
         if application_path_exists:
             self.main_page = HasApplicationView(controller=self)
         else:
