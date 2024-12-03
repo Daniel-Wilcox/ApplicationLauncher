@@ -1,6 +1,17 @@
+import platform
+import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 import re
+import os
+import json
+import PyInstaller.__main__
+import requests
+
+
+# APPLICATION_DIR = ".app"
+APPLICATION_DIR = ".temp_github_app"
+CONFIG_FILE = "config.json"
 
 
 class HasApplicationView(tk.Frame):
@@ -59,6 +70,10 @@ class DoesNotHaveApplicationView(tk.Frame):
 
         print(f"Getting Application project from: {self.project_url.get()}")
 
+        # Download Github to '.app' folder
+
+        # Check if
+
     @staticmethod
     def _validate_github_url(url: str) -> bool:
         github_url_pattern = re.compile(
@@ -72,24 +87,241 @@ class DoesNotHaveApplicationView(tk.Frame):
             return False
 
 
+class LoadingScreenView(tk.Frame):
+
+    def __init__(self, controller):
+        super().__init__(controller)
+
+        self.controller = controller
+
+        application_title = self.winfo_toplevel().title()
+
+        self.loading_title = tk.Label(
+            master=controller,
+            text=f"Launching '{application_title}' application",
+        )
+        self.loading_title.pack(pady=20)
+
+        self.loading_bar = ttk.Progressbar(master=controller, mode="indeterminate")
+        self.loading_bar.pack()
+        self.loading_bar.start()
+
+        quit_button = tk.Button(
+            master=self, text="Quit", command=self.controller.destroy
+        )
+        quit_button.pack(padx=20, pady=10)
+
+    # TODO add in the callback somehow
+    def _stop_loading_callback(self):
+        self.loading_bar.stop()
+
+
 class ApplicationController(tk.Tk):
 
     def __init__(self):
         super().__init__()
+
+        # Define default values
+        self.root_dir = os.path.dirname(os.path.abspath(__file__))
+        self.application_dir = os.path.join(self.root_dir, APPLICATION_DIR)
 
         # Window properties
         self.title("Application Launcher")
         self.geometry("600x200")
         self.eval("tk::PlaceWindow . center")
         self.focus_force()
+
+        # Set main page
         self.set_main_page()
 
+        # Check if app updates are required
+        self.check_app_updates()
+
+        # Launch appliction
+        # self.launch_application()
+
+    def check_app_updates(self):
+
+        # Check .app exists
+        if not os.path.isdir(self.application_dir):
+            print(f"Error #1: no {self.application_dir} folder")
+
+            # os.mkdir(self.application_dir)
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        # Check if .app is empty
+        app_files = os.listdir(self.application_dir)
+        if not app_files:
+            print(f"Error #2: {self.application_dir} folder is empty")
+
+            # App files are empty
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        # Check config file exists (check versions)
+        if CONFIG_FILE not in app_files:
+            print(
+                f"Error #3: {self.application_dir} folder doesn't have 'config.json'."
+            )
+
+            # Need to download git
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        # Check local config.json values
+        self.config_path = os.path.join(self.application_dir, CONFIG_FILE)
+        try:
+            with open(self.config_path, "r") as f:
+                self.local_config = json.load(f)
+        except json.JSONDecodeError as e:
+            self.local_config = {}
+
+        if not self.local_config:
+            print(f"Error #4: Local config.json file is empty or doesn't exist.")
+
+            # Create config file
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        # Check local application version
+        self.local_version = self.local_config.get("version", None)
+        if not self.local_version:
+            print(f"Error #5: Local config.json doesn't have 'version' field.")
+
+            # no app version
+            # ! NEW VIEW ! Ask user for URL
+
+            return
+
+        self.app_file = self.local_config.get("app_file", None)
+        print(f"{self.app_file = }")
+        if not self.app_file:
+            print(f"Error #6: Local config.json doesn't have 'app_file' field.")
+
+            # no app version
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        self.github_url = self.local_config.get("github_url", None)
+        if not self.github_url:
+            print(f"Error #7: Local config.json doesn't have 'github_url' field.")
+
+            # no app version
+            # ! NEW VIEW ! Ask user for URL
+            return
+
+        # Get config from Github
+        self.gh_username = self.github_url.split("/")[-2]
+        self.gh_project_name = self.github_url.split("/")[-1]
+        self.github_config_url = f"https://raw.githubusercontent.com/{self.gh_username}/{self.gh_project_name}/refs/heads/master/config.json"
+
+        try:
+            r = requests.get(
+                url=self.github_config_url, headers={"Accept": "application/json"}
+            )
+            self.github_config = r.json()
+        except Exception as e:
+            print(
+                f"Error #8: Couldn't read config.json file from URL: {self.github_config_url}"
+            )
+            self.github_config = {}
+
+        if not self.github_config:
+            # Failed to download config
+            print(
+                f"Error #9: Couldn't read config.json file from URL: {self.github_config_url}"
+            )
+            return
+
+        # Compare local and github versions
+        self.github_version = self.github_config.get("version", None)
+        print(f"{self.local_version = }")
+        print(f"{self.github_version = }")
+
+        if self.github_version > self.local_version:
+            # Need to update:
+
+            # Download/pull/fetch git
+            # validate application files
+            # Run pyinstaller
+            # Launch app and close launcher
+            ...
+            return
+
+        # No need to update
+        self.dist_dir = os.path.join(self.application_dir, "dist")
+        if not os.path.exists(self.dist_dir):
+            print(f"Error #10: Dist folder doesn't exist.")
+            # ! make executable
+
+            pyinstaller_command = ...
+
+            self.make_app_path = os.path.join(self.application_dir, self.app_file)
+            # print(rf"pyinstaller {self.make_app_path} --onedir --windowed")
+            PyInstaller.__main__.run(
+                [
+                    self.make_app_path,
+                    "--onedir",
+                    "--windowed",
+                    "--distpath",
+                    f"{os.path.join(self.application_dir, "dist")}",
+                    "--workpath",
+                    f"{os.path.join(self.application_dir, "build")}",
+                    "-y",
+                ]
+            )
+            # subprocess.call(rf"Pyinstaller {self.make_app_path} --onedir --windowed")
+
+        exec_dir = os.path.join(self.dist_dir, "app")
+        if not os.path.exists(exec_dir):
+            print(f"Error #11: Application executable doesn't exist.")
+            # ! make executable
+
+            self.make_app_path = os.path.join(self.application_dir, self.app_file)
+            # print(rf"pyinstaller {self.make_app_path} --onedir --windowed")
+            PyInstaller.__main__.run(
+                [
+                    self.make_app_path,
+                    "--onedir",
+                    "--windowed",
+                    "--distpath",
+                    f"{os.path.join(self.application_dir, "dist")}",
+                    "--workpath",
+                    f"{os.path.join(self.application_dir, "build")}",
+                    "-y",
+                ]
+            )
+            # subprocess.call(rf"Pyinstaller {self.make_app_path} --onedir --windowed")
+
+        # Launch app and close launcher
+        self.run_executable(self.application_dir, self.app_file)
+        self.destroy()
+
+        return
+
+    @staticmethod
+    def run_executable(application_dir: str, app_filename: str):
+        sys_platform = platform.system()
+
+        app_name = app_filename.split(".")[0]
+
+        match sys_platform:
+            case "Windows":
+                executable_name = f"{app_name}.exe"
+            case _:
+                executable_name = f"{app_name}"
+
+        #  "/Users/daniel/Desktop/PythonProjects/ApplicationLauncher/.temp_github_app/dist/app/app"
+        exec_path = os.path.join(application_dir, "dist", app_name, executable_name)
+
+        subprocess.call([exec_path])
+
+        return
+
     def set_main_page(self):
-        application_path_exists = False
-        if application_path_exists:
-            self.main_page = HasApplicationView(controller=self)
-        else:
-            self.main_page = DoesNotHaveApplicationView(controller=self)
+
+        self.main_page = LoadingScreenView(controller=self)
 
         self.main_page.pack(side="top", fill="both", expand=True)
         self.main_page.grid_rowconfigure(0, weight=1)
