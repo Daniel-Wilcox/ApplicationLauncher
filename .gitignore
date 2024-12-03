@@ -1,0 +1,6 @@
+.DS_Store
+*.spec
+.temp_github_app
+.temp_github_app copy
+.venv
+.vscode
