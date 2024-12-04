@@ -1,5 +1,7 @@
 import platform
+import shutil
 import subprocess
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 import re
@@ -7,6 +9,8 @@ import os
 import json
 import PyInstaller.__main__
 import requests
+import threading
+import asyncio
 
 
 # APPLICATION_DIR = ".app"
@@ -104,15 +108,16 @@ class LoadingScreenView(tk.Frame):
 
         self.loading_bar = ttk.Progressbar(master=controller, mode="indeterminate")
         self.loading_bar.pack()
-        self.loading_bar.start()
 
-        quit_button = tk.Button(
+        self.quit_button = tk.Button(
             master=self, text="Quit", command=self.controller.destroy
         )
-        quit_button.pack(padx=20, pady=10)
+        self.quit_button.pack(padx=20, pady=10)
+
+        self.loading_bar.start()
 
     # TODO add in the callback somehow
-    def _stop_loading_callback(self):
+    def stop_loading_callback(self):
         self.loading_bar.stop()
 
 
@@ -137,8 +142,10 @@ class ApplicationController(tk.Tk):
         # Check if app updates are required
         self.check_app_updates()
 
-        # Launch appliction
-        # self.launch_application()
+        # Launch app and close launcher
+        self.destroy()
+        self.run_executable(self.application_dir, self.app_file)
+        # self.destroy()
 
     def check_app_updates(self):
 
@@ -164,7 +171,6 @@ class ApplicationController(tk.Tk):
             print(
                 f"Error #3: {self.application_dir} folder doesn't have 'config.json'."
             )
-
             # Need to download git
             # ! NEW VIEW ! Ask user for URL
             return
@@ -195,7 +201,6 @@ class ApplicationController(tk.Tk):
             return
 
         self.app_file = self.local_config.get("app_file", None)
-        print(f"{self.app_file = }")
         if not self.app_file:
             print(f"Error #6: Local config.json doesn't have 'app_file' field.")
 
@@ -240,13 +245,16 @@ class ApplicationController(tk.Tk):
         print(f"{self.github_version = }")
 
         if self.github_version > self.local_version:
-            # Need to update:
+            print(f"needed to update functions")
+            # Clone or Pull github
+            self.get_github_app()
 
-            # Download/pull/fetch git
             # validate application files
-            # Run pyinstaller
-            # Launch app and close launcher
             ...
+
+            # Build executable with pyinstaller
+            self.build_app_executable()
+
             return
 
         # No need to update
@@ -295,8 +303,9 @@ class ApplicationController(tk.Tk):
             # subprocess.call(rf"Pyinstaller {self.make_app_path} --onedir --windowed")
 
         # Launch app and close launcher
-        self.run_executable(self.application_dir, self.app_file)
-        self.destroy()
+        print(f"Success #12: Launching app.")
+        # self.run_executable(self.application_dir, self.app_file)
+        # self.destroy()
 
         return
 
@@ -314,9 +323,7 @@ class ApplicationController(tk.Tk):
 
         #  "/Users/daniel/Desktop/PythonProjects/ApplicationLauncher/.temp_github_app/dist/app/app"
         exec_path = os.path.join(application_dir, "dist", app_name, executable_name)
-
-        subprocess.call([exec_path])
-
+        os.system(exec_path)
         return
 
     def set_main_page(self):
