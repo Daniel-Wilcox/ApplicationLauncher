@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import tkinter as tk
+from tkinter import ttk
 
 LARGE_FONT = ("Verdana", 12)
 
@@ -35,86 +36,110 @@ class StartView(AbstractView):
 
         button1 = tk.Button(
             self,
-            text="Visit Page 1",
-            command=lambda: self.controller.change_view(PageOneView),
+            text="Test: Loading Page.",
+            command=lambda: self.controller.change_view(LoadingScreenView),
         )
         button1.pack()
 
         button2 = tk.Button(
             self,
-            text="Visit Page 2",
-            command=lambda: self.controller.change_view(PageTwoView),
+            text="Test: Github Page.",
+            command=lambda: self.controller.change_view(ApplicationGithubUrlView),
         )
         button2.pack()
 
     def reset_defaults(self):
-        pass
+        print(f"Resetting defaults for Start")
 
 
-class PageOneView(AbstractView):
-
+class ApplicationGithubUrlView(AbstractView):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
 
         # Define locals
-        ...
+        self.default_project_url = ""  # TODO: either config or init variable
+        self.project_url = tk.StringVar(value=self.default_project_url)
 
         # Initialise Widgets
         self.load_widgets()
 
     def load_widgets(self):
-        label = tk.Label(self, text="Page One!!!", font=LARGE_FONT)
-        label.pack(pady=10, padx=10)
+        text_label = tk.Label(self, text="Please provide application's GitHub URL:")
+        text_label.pack(padx=20, pady=10)
 
-        button1 = tk.Button(
+        # Add user entry widget
+        self.user_entry = tk.Entry(self, textvariable=self.project_url)
+        self.user_entry.pack()
+
+        # Define a callback for when the user hits return.
+        self.user_entry.bind("<Key-Return>", self.get_github_project)
+
+        submit_button = tk.Button(self, text="Submit", command=self.get_github_project)
+        submit_button.pack(padx=20, pady=10)
+
+        home_button = tk.Button(
             self,
-            text="Back to Home",
+            text="Back Home",
             command=lambda: self.controller.change_view(StartView),
         )
-        button1.pack()
+        home_button.pack(padx=20, pady=10)
 
-        button2 = tk.Button(
-            self,
-            text="Page Two",
-            command=lambda: self.controller.change_view(PageTwoView),
-        )
-        button2.pack()
+        quit_button = tk.Button(self, text="Quit", command=self.controller.destroy)
+        quit_button.pack(padx=20, pady=10)
+
+        self.user_entry.focus()
+
+    def get_github_project(self, event=None):
+        url = self.project_url.get()
+        print(f"Getting application from: {url}")
 
     def reset_defaults(self):
-        pass
+        print(f"Resetting defaults for URL")
 
 
-class PageTwoView(AbstractView):
-
+class LoadingScreenView(AbstractView):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
 
         # Define locals
-        ...
+        self.application_title = "Classic Eyes WATI"
 
         # Initialise Widgets
         self.load_widgets()
 
     def load_widgets(self):
-        label = tk.Label(self, text="Page Two!!!", font=LARGE_FONT)
-        label.pack(pady=10, padx=10)
-
-        button1 = tk.Button(
+        self.loading_title = tk.Label(
             self,
-            text="Back to Home",
-            command=lambda: self.controller.change_view(StartView),
+            text=f"Launching '{self.application_title}' application",
         )
-        button1.pack()
+        self.loading_title.pack(pady=20)
 
-        button2 = tk.Button(
+        self.loading_bar = ttk.Progressbar(self, mode="indeterminate")
+        self.loading_bar.pack()
+
+        home_button = tk.Button(
             self,
-            text="Page One",
-            command=lambda: self.controller.change_view(PageOneView),
+            text="Back Home",
+            command=self.loading_home,
         )
-        button2.pack()
+        home_button.pack(padx=20, pady=10)
+
+        self.quit_button = tk.Button(self, text="Quit", command=self.loading_quit)
+        self.quit_button.pack(padx=20, pady=10)
+
+        self.loading_bar.start()
+
+    def loading_home(self):
+        self.loading_bar.stop()
+        self.controller.change_view(StartView)
+
+    def loading_quit(self):
+        self.loading_bar.stop()
+        self.controller.destroy()
 
     def reset_defaults(self):
-        pass
+        print(f"Resetting defaults for Loading")
+        self.loading_bar.start()
 
 
 class ApplicationController(tk.Tk):
@@ -136,11 +161,12 @@ class ApplicationController(tk.Tk):
         # Add all available views with dictionary comprehension
         self.available_views: dict[AbstractView, AbstractView] = {
             ViewClass: ViewClass(parent=self.main_frame, controller=self)
-            for ViewClass in (StartView, PageOneView, PageTwoView)
+            for ViewClass in (
+                StartView,
+                ApplicationGithubUrlView,
+                LoadingScreenView,
+            )
         }
-
-        available_views_list = [str(v.__name__) for v in self.available_views.keys()]
-        print(f"All views: {available_views_list}\n")
 
         for view in self.available_views.values():
             view.grid(row=0, column=0, sticky="nsew")
@@ -155,7 +181,9 @@ class ApplicationController(tk.Tk):
         self.eval("tk::PlaceWindow . center")
         self.focus_force()
 
-    def change_view(self, view_class: tk.Frame | None = None):
+    def change_view(
+        self, view_class: tk.Frame | None = None, reset_defaults: bool = True
+    ):
         new_view_obj: tk.Frame | None
         view_class_str = str(view_class.__name__)
 
@@ -184,6 +212,9 @@ class ApplicationController(tk.Tk):
             )
 
         # Change views
+        if reset_defaults:
+            new_view_obj.reset_defaults()
+
         new_view_obj.tkraise()
 
 
