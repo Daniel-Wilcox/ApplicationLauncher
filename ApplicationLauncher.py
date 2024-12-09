@@ -142,6 +142,9 @@ class LoadingScreenView(AbstractView):
         self.loading_bar.start()
 
 
+DEFAULT_VIEW_LIST = [StartView, LoadingScreenView, ApplicationGithubUrlView]
+
+
 class ApplicationController(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -152,28 +155,15 @@ class ApplicationController(tk.Tk):
         # Add window properties
         self.set_window_properties()
 
-        # Set 'main frame' to be parent of all application views
-        self.main_frame = tk.Frame(self)
-        self.main_frame.pack(side="top", fill="both", expand=True)
-        self.main_frame.grid_rowconfigure(0, weight=1)
-        self.main_frame.grid_columnconfigure(0, weight=1)
+        # Add Views to window's main frame
+        self.set_available_views_dict()
 
-        # Add all available views with dictionary comprehension
-        self.available_views: dict[AbstractView, AbstractView] = {
-            ViewClass: ViewClass(parent=self.main_frame, controller=self)
-            for ViewClass in (
-                StartView,
-                ApplicationGithubUrlView,
-                LoadingScreenView,
-            )
-        }
-
-        for view in self.available_views.values():
-            view.grid(row=0, column=0, sticky="nsew")
+        # Get initial view class
+        first_page = self.get_initial_view_class()
+        print(f"{first_page = }")
 
         # Show first page
-        first_page = next(iter(self.available_views.values()))
-        first_page.tkraise()
+        self.change_view(first_page)
 
     def set_window_properties(self):
         self.title("Application Launcher")
@@ -181,12 +171,43 @@ class ApplicationController(tk.Tk):
         self.eval("tk::PlaceWindow . center")
         self.focus_force()
 
+    def set_available_views_dict(
+        self, all_views_list: list[AbstractView] | None = DEFAULT_VIEW_LIST
+    ):
+
+        if not all_views_list:
+            # TODO: change to get from config or self with getattr(self, 'all_views_list', None)
+            raise ValueError(f"Provided views list cannot be empty.")
+
+        # Set 'main frame' to be parent of all application views
+        self.main_frame = tk.Frame(self)
+        self.main_frame.pack(side="top", fill="both", expand=True)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+
+        # Add all available views with dictionary comprehension
+        self.available_views_dict: dict[AbstractView, AbstractView] = {
+            ViewClass: ViewClass(parent=self.main_frame, controller=self)
+            for ViewClass in all_views_list
+        }
+
+        for view_obj in self.available_views_dict.values():
+            view_obj.grid(row=0, column=0, sticky="nsew")
+
+    def get_initial_view_class(self) -> AbstractView:
+        available_views: list[AbstractView] = list(self.available_views_dict.keys())
+
+        # Conditional checks to determine initial page
+        # TODO Add more involved checks to determine whether should ask user for url or start loading
+        first_page_class = next(iter(available_views))
+
+        return first_page_class
+
     def change_view(
         self, view_class: tk.Frame | None = None, reset_defaults: bool = True
     ):
         new_view_obj: tk.Frame | None
         view_class_str = str(view_class.__name__)
-
         print(f"Changing View: {view_class_str}.")
 
         if not view_class:
@@ -201,17 +222,22 @@ class ApplicationController(tk.Tk):
 
         # Update current view
         self.current_view_class = view_class
+        new_view_obj = self.available_views_dict.get(view_class, None)
+        available_views_list = [
+            str(v.__name__) for v in self.available_views_dict.keys()
+        ]
 
-        new_view_obj = self.available_views.get(view_class, None)
         if not new_view_obj:
-            available_views_list = [
-                str(v.__class__.__name__) for v in self.available_views.keys()
-            ]
+            raise AttributeError(f"Provided '{view_class_str}' cannot be empty.")
+
+        if view_class_str not in available_views_list:
             raise AttributeError(
-                f"View '{view_class}' does not exist in available views list: {', '.join(available_views_list)}."
+                f"View '{view_class_str}' does not exist in available views list: {', '.join(available_views_list)}."
             )
 
         # Change views
+        new_view_obj: AbstractView
+
         if reset_defaults:
             new_view_obj.reset_defaults()
 
