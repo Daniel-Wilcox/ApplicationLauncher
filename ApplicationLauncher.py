@@ -1,8 +1,13 @@
 from abc import ABC, abstractmethod
+import json
+import os
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 
 LARGE_FONT = ("Verdana", 12)
+DEFAULT_APPLICATION_DIRNAME = ".temp_github_app"
+DEFAULT_CONFIG_FILENAME = "config.json"
 
 
 class AbstractView(ABC, tk.Frame):
@@ -150,7 +155,11 @@ class ApplicationController(tk.Tk):
         super().__init__(**kwargs)
 
         # Define defaults
-        self.current_view_class = None
+        self.root_dir = os.path.dirname(os.path.abspath(__file__))
+        self.application_dir = os.path.join(self.root_dir, DEFAULT_APPLICATION_DIRNAME)
+        self.config_path = os.path.join(self.application_dir, DEFAULT_CONFIG_FILENAME)
+
+        self.current_view_class: AbstractView | None = None
 
         # Add window properties
         self.set_window_properties()
@@ -160,7 +169,8 @@ class ApplicationController(tk.Tk):
 
         # Get initial view class
         first_page = self.get_initial_view_class()
-        print(f"{first_page = }")
+        first_page_str = first_page.__name__
+        print(f"Chosen First Page: {first_page_str}")
 
         # Show first page
         self.change_view(first_page)
@@ -176,8 +186,9 @@ class ApplicationController(tk.Tk):
     ):
 
         if not all_views_list:
-            # TODO: change to get from config or self with getattr(self, 'all_views_list', None)
-            raise ValueError(f"Provided views list cannot be empty.")
+            err_msg = "ValueError: Must have a non-empty list of views defined within 'all_views_list'."
+            messagebox.showerror(self, title="No views provided.", message=err_msg)
+            self.destroy()
 
         # Set 'main frame' to be parent of all application views
         self.main_frame = tk.Frame(self)
@@ -194,13 +205,55 @@ class ApplicationController(tk.Tk):
         for view_obj in self.available_views_dict.values():
             view_obj.grid(row=0, column=0, sticky="nsew")
 
+    def get_local_config_dict(self) -> dict:
+
+        try:
+            with open(self.config_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError, PermissionError, IOError):
+            return {}
+
+        return {}
+
     def get_initial_view_class(self) -> AbstractView:
+
+        if not getattr(self, "available_views_dict", None):
+            err_msg = "ValueError: Must have a non-empty list of views defined within 'available_views_dict'."
+            messagebox.showerror(self, title="No views provided.", message=err_msg)
+            self.destroy()
+
         available_views: list[AbstractView] = list(self.available_views_dict.keys())
 
         # Conditional checks to determine initial page
-        # TODO Add more involved checks to determine whether should ask user for url or start loading
-        first_page_class = next(iter(available_views))
+        app_dir_exists = os.path.exists(self.config_path)  # ./.app/config.json
+        local_config_dict = self.get_local_config_dict()
+        local_config_file_exists = os.path.exists(self.config_path)
+        local_config_is_empty = not local_config_dict
+        local_config_has_url = "github_url" in local_config_dict
 
+        needs_user_url = (
+            not app_dir_exists
+            or not local_config_file_exists
+            or local_config_is_empty
+            or not local_config_has_url
+        )
+        ready_to_load = (
+            app_dir_exists
+            and local_config_file_exists
+            and not local_config_is_empty
+            and local_config_has_url
+        )
+
+        # Selection of initial view
+        if needs_user_url:
+            print("selected: ApplicationGithubUrlView")
+            return ApplicationGithubUrlView
+
+        if ready_to_load:
+            print("selected: LoadingScreenView")
+            return LoadingScreenView
+
+        first_page_class = next(iter(available_views))
         return first_page_class
 
     def change_view(
