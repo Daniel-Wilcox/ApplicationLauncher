@@ -1,14 +1,30 @@
+from abc import ABC, abstractmethod
 import tkinter as tk
 
 LARGE_FONT = ("Verdana", 12)
 
 
-class StartView(tk.Frame):
+class AbstractView(ABC, tk.Frame):
+
     def __init__(self, parent, controller):
         super().__init__(parent)
+        self.controller = controller
+
+    @abstractmethod
+    def load_widgets(self):
+        """Abstract method to load the view's widgets"""
+
+    @abstractmethod
+    def reset_defaults(self):
+        """Abstract method to reset the view's default values"""
+
+
+class StartView(AbstractView):
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
 
         # Define locals
-        self.controller = controller
+        ...
 
         # Initialise Widgets
         self.load_widgets()
@@ -35,13 +51,13 @@ class StartView(tk.Frame):
         pass
 
 
-class PageOneView(tk.Frame):
+class PageOneView(AbstractView):
 
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, controller)
 
         # Define locals
-        self.controller = controller
+        ...
 
         # Initialise Widgets
         self.load_widgets()
@@ -68,13 +84,13 @@ class PageOneView(tk.Frame):
         pass
 
 
-class PageTwoView(tk.Frame):
+class PageTwoView(AbstractView):
 
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, controller)
 
         # Define locals
-        self.controller = controller
+        ...
 
         # Initialise Widgets
         self.load_widgets()
@@ -118,7 +134,7 @@ class ApplicationController(tk.Tk):
         self.main_frame.grid_columnconfigure(0, weight=1)
 
         # Add all available views with dictionary comprehension
-        self.available_views: dict = {
+        self.available_views: dict[AbstractView, AbstractView] = {
             ViewClass: ViewClass(parent=self.main_frame, controller=self)
             for ViewClass in (StartView, PageOneView, PageTwoView)
         }
@@ -143,7 +159,7 @@ class ApplicationController(tk.Tk):
         new_view_obj: tk.Frame | None
         view_class_str = str(view_class.__name__)
 
-        print(f"Starting: change_view({view_class_str}).")
+        print(f"Changing View: {view_class_str}.")
 
         if not view_class:
             raise NotImplementedError(
