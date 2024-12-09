@@ -6,6 +6,9 @@ class Application(tk.Tk):
         super().__init__(**kwargs)
 
         # Add window properties
+        self.set_window_properties()
+
+    def set_window_properties(self):
         self.title("Application Launcher")
         self.geometry("600x200")
         self.eval("tk::PlaceWindow . center")
