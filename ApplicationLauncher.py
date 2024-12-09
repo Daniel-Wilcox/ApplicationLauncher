@@ -231,18 +231,14 @@ class ApplicationController(tk.Tk):
         local_config_is_empty = not local_config_dict
         local_config_has_url = "github_url" in local_config_dict
 
+        # Note that 'needs_user_url' and 'ready_to_load' are symmetrical.
         needs_user_url = (
             not app_dir_exists
             or not local_config_file_exists
             or local_config_is_empty
             or not local_config_has_url
         )
-        ready_to_load = (
-            app_dir_exists
-            and local_config_file_exists
-            and not local_config_is_empty
-            and local_config_has_url
-        )
+        ready_to_load = not needs_user_url
 
         # Selection of initial view
         if needs_user_url:
