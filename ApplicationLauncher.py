@@ -4,15 +4,25 @@ import os
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from typing import Protocol
 
 LARGE_FONT = ("Verdana", 12)
 DEFAULT_APPLICATION_DIRNAME = ".temp_github_app"
 DEFAULT_CONFIG_FILENAME = "config.json"
 
 
+class ApplicationControllerProtocol(Protocol):
+
+    def change_view(
+        self, view_class: tk.Frame | None = None, reset_defaults: bool = True
+    ): ...
+
+    def destroy(self): ...
+
+
 class AbstractView(ABC, tk.Frame):
 
-    def __init__(self, parent, controller):
+    def __init__(self, parent: tk.Frame, controller: ApplicationControllerProtocol):
         super().__init__(parent)
         self.controller = controller
 
